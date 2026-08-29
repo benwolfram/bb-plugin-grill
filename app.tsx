@@ -141,6 +141,43 @@ function sameAsRecommended(
   });
 }
 
+/**
+ * Long bodies are what starve a phone of room, and you do not need to read one
+ * to accept the recommendation. Collapse anything past a few lines behind a
+ * toggle; short bodies stay open so nothing is hidden without cause.
+ */
+const BODY_COLLAPSE_CHARS = 240;
+
+function QuestionBody({ body }: { body: string }) {
+  const collapsible = body.length > BODY_COLLAPSE_CHARS;
+  const [open, setOpen] = useState(false);
+  const collapsed = collapsible && !open;
+  return (
+    <div className="mt-1.5">
+      <div
+        className={cn(
+          "relative text-sm text-muted-foreground",
+          collapsed && "max-h-24 overflow-hidden",
+        )}
+      >
+        <Markdown content={body} />
+        {collapsed ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
+        ) : null}
+      </div>
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className="mt-1 text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          {open ? "Show less" : "Show more"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function ChoiceBody({ choice }: { choice: Choice }) {
   return (
     <span className="min-w-0 flex-1">
@@ -164,11 +201,13 @@ function ChoiceBody({ choice }: { choice: Choice }) {
 function QuestionBlock({
   question,
   index,
+  total,
   answer,
   onChange,
 }: {
   question: Question;
   index: number;
+  total: number;
   answer: Answer;
   onChange: (next: Answer) => void;
 }) {
@@ -200,15 +239,11 @@ function QuestionBlock({
     <fieldset className="min-w-0">
       <legend className="flex items-baseline gap-2">
         <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-          Q{index + 1}
+          Q{index + 1}/{total}
         </span>
         <span className="text-sm font-medium">{question.title}</span>
       </legend>
-      {question.body ? (
-        <div className="mt-1.5 text-sm text-muted-foreground">
-          <Markdown content={question.body} />
-        </div>
-      ) : null}
+      {question.body ? <QuestionBody body={question.body} /> : null}
       <div className="mt-2 flex flex-col gap-0.5">
         {question.choices.map((choice) => (
           <ChoiceRow key={choice.id}>
@@ -342,18 +377,13 @@ function GrillRound({
       ref={formRef}
       onSubmit={onSubmit}
       onKeyDown={onKeyDown}
-      className="flex max-h-[60vh] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-card"
+      className="flex max-h-[80dvh] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-card"
     >
-      <div className="shrink-0 border-b border-border px-4 py-3">
-        <p className="text-sm font-medium">
-          {questions.length} question{questions.length === 1 ? "" : "s"}
-        </p>
-        {payload.intro ? (
-          <div className="mt-1 text-sm text-muted-foreground">
-            <Markdown content={payload.intro} />
-          </div>
-        ) : null}
-      </div>
+      {payload.intro ? (
+        <div className="shrink-0 border-b border-border px-4 py-2.5 text-sm text-muted-foreground">
+          <Markdown content={payload.intro} />
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 py-3">
         {questions.map((question, index) => (
@@ -361,6 +391,7 @@ function GrillRound({
             key={question.id}
             question={question}
             index={index}
+            total={questions.length}
             answer={answers[question.id] ?? recommendedAnswers([question])[question.id]!}
             onChange={(next) =>
               setAnswers((current) => ({ ...current, [question.id]: next }))
