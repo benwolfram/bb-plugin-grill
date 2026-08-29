@@ -233,18 +233,36 @@ export default async function plugin(bb: BbPluginApi) {
           isError: true,
         };
       }
-      const result = await bb.ui.requestInput(
-        {
-          threadId,
-          rendererId: RENDERER_ID,
-          title: `Grilling — ${payload.questions.length} question${
-            payload.questions.length === 1 ? "" : "s"
-          }`,
-          payload: payload as never,
-          timeoutMs: 60 * 60 * 1000,
-        },
-        { signal },
-      );
+      let result;
+      try {
+        result = await bb.ui.requestInput(
+          {
+            threadId,
+            rendererId: RENDERER_ID,
+            title: `Grilling — ${payload.questions.length} question${
+              payload.questions.length === 1 ? "" : "s"
+            }`,
+            payload: payload as never,
+            timeoutMs: 60 * 60 * 1000,
+          },
+          { signal },
+        );
+      } catch (cause) {
+        // The transport carrying this tool call can give up while the form is
+        // still open — notably the host daemon's five-minute body timeout.
+        // Say so plainly instead of crashing the turn.
+        const detail = cause instanceof Error ? cause.message : String(cause);
+        bb.log.warn(`round transport failed: ${detail}`);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `The form was still open when the connection carrying this call gave up (${detail}). Any answers the user was typing are lost. Ask this round in plain chat instead.`,
+            },
+          ],
+          isError: true,
+        };
+      }
 
       if (result.outcome === "cancelled") {
         return {
