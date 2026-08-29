@@ -16,6 +16,8 @@ const MAX_QUESTIONS = 12;
 const MAX_OPTIONS = 8;
 /** Longest answer the user may type per question; the panel caps it too. */
 const MAX_CUSTOM_CHARS = 4000;
+/** bb hard-caps an interaction at one hour; take all of it. */
+const ROUND_TIMEOUT_MS = 60 * 60 * 1000;
 /** bb rejects a payload over 64 KiB; leave headroom for the envelope. */
 const MAX_PAYLOAD_BYTES = 56 * 1024;
 
@@ -206,20 +208,83 @@ function formatAnswers(
 }
 
 export default async function plugin(bb: BbPluginApi) {
+  // A round outlives the tool call that raised it. The daemon carrying a
+  // plugin tool call gives up on an idle response body after five minutes, so
+  // waiting for a human inside execute() kills any round worth thinking about.
+  // Instead the tool returns at once, the form is awaited off to the side, and
+  // the answers come back as a message that starts a fresh turn.
+  const openRounds = new Map<string, PayloadQuestion[]>();
+
+  bb.onDispose(() => {
+    // Plugin disposal reaps the interactions themselves; drop our view of them.
+    openRounds.clear();
+  });
+
+  /** Await the form, then hand the answers to the thread as a message. */
+  async function collect(threadId: string, questions: PayloadQuestion[], title: string, payload: unknown) {
+    try {
+      // No abort signal on purpose: the tool call's signal dies the moment
+      // execute() returns, which is immediately.
+      const result = await bb.ui.requestInput({
+        threadId,
+        rendererId: RENDERER_ID,
+        title,
+        payload: payload as never,
+        timeoutMs: ROUND_TIMEOUT_MS,
+      });
+
+      if (result.outcome === "cancelled") {
+        // The user dismissed the round to say something of their own. Staying
+        // quiet leaves them holding the floor.
+        bb.log.info(`round dismissed (${result.reason})`);
+        return;
+      }
+
+      const parsed = responseSchema.safeParse(result.value);
+      const known =
+        parsed.success &&
+        parsed.data.answers.every((answer) => {
+          const question = questions.find((q) => q.id === answer.id);
+          if (!question) return false;
+          if (!question.multiple && answer.choiceIds.length > 1) return false;
+          return answer.choiceIds.every((choiceId) =>
+            question.choices.some((choice) => choice.id === choiceId),
+          );
+        });
+
+      const text =
+        parsed.success && known
+          ? `My answers to the round:\n\n${formatAnswers(questions, parsed.data.answers)}`
+          : "The grilling form returned answers this plugin could not read. Ask the round again in plain chat.";
+
+      await bb.sdk.threads.send({
+        threadId,
+        input: [{ type: "text", text, mentions: [] }],
+        mode: "steer-if-active",
+      });
+    } catch (cause) {
+      bb.log.warn(
+        `round failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      );
+    } finally {
+      openRounds.delete(threadId);
+    }
+  }
+
   bb.agents.registerTool({
     name: "grill_round",
     description:
-      "Put a whole round of grilling questions to the user as a form and wait for the answers. Each question carries its prose, your recommended answer, and the discrete options.",
+      "Put a whole round of grilling questions to the user as a form. Returns immediately; the answers arrive later as a message.",
     instructions:
-      "When you are grilling the user — a round of numbered questions each with a recommended answer — submit the whole round through grill_round instead of printing the questions into the chat. Write the questions exactly as you otherwise would: the question body is the prose you would have written, and the recommendation is your recommended answer in your own words, which may combine options. Ask the entire frontier in one call. If the tool reports the round was cancelled, fall back to asking in plain chat.",
+      "When you are grilling the user — a round of numbered questions each with a recommended answer — submit the whole round through grill_round instead of printing the questions into the chat. Write the questions exactly as you otherwise would: the question body is the prose you would have written, and the recommendation is your recommended answer in your own words, which may combine options. Ask the entire frontier in one call. The tool returns as soon as the form is on screen: say one short line and END YOUR TURN. Do not wait, poll, or re-ask — the user's answers arrive on their own as a new message. If the user dismisses the form they will speak for themselves.",
     presentation: {
       label: {
-        pending: "Grilling — waiting for answers",
-        completed: "Grilling round answered",
+        pending: "Putting the round on screen",
+        completed: "Round is on screen",
       },
     },
     parameters: roundSchema,
-    async execute(input, { threadId, signal }) {
+    async execute(input, { threadId }) {
       const round = input as Round;
       const payload = fitPayload(toPayload(round));
       if (payload === null) {
@@ -233,78 +298,28 @@ export default async function plugin(bb: BbPluginApi) {
           isError: true,
         };
       }
-      let result;
-      try {
-        result = await bb.ui.requestInput(
-          {
-            threadId,
-            rendererId: RENDERER_ID,
-            title: `Grilling — ${payload.questions.length} question${
-              payload.questions.length === 1 ? "" : "s"
-            }`,
-            payload: payload as never,
-            timeoutMs: 60 * 60 * 1000,
-          },
-          { signal },
-        );
-      } catch (cause) {
-        // The transport carrying this tool call can give up while the form is
-        // still open — notably the host daemon's five-minute body timeout.
-        // Say so plainly instead of crashing the turn.
-        const detail = cause instanceof Error ? cause.message : String(cause);
-        bb.log.warn(`round transport failed: ${detail}`);
+
+      // bb allows one interaction per thread, so a second round would 409.
+      if (openRounds.has(threadId)) {
         return {
           content: [
             {
               type: "text" as const,
-              text: `The form was still open when the connection carrying this call gave up (${detail}). Any answers the user was typing are lost. Ask this round in plain chat instead.`,
+              text: "A round is already on screen in this thread. Wait for those answers before asking another.",
             },
           ],
           isError: true,
         };
       }
 
-      if (result.outcome === "cancelled") {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `The user dismissed the round (${result.reason}). Ask this round in plain chat instead, and do not call grill_round again for it.`,
-            },
-          ],
-          isError: true,
-        };
-      }
+      const count = payload.questions.length;
+      const title = `Grilling — ${count} question${count === 1 ? "" : "s"}`;
+      openRounds.set(threadId, payload.questions);
+      void collect(threadId, payload.questions, title, payload);
 
-      const parsed = responseSchema.safeParse(result.value);
-      const known =
-        parsed.success &&
-        parsed.data.answers.every((answer) => {
-          const question = payload.questions.find((q) => q.id === answer.id);
-          if (!question) return false;
-          if (!question.multiple && answer.choiceIds.length > 1) return false;
-          return answer.choiceIds.every((choiceId) =>
-            question.choices.some((choice) => choice.id === choiceId),
-          );
-        });
-      if (!parsed.success || !known) {
-        bb.log.warn(
-          `malformed round response: ${
-            parsed.success ? "answers do not match the round" : parsed.error.message
-          }`,
-        );
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "The answers came back malformed. Ask this round in plain chat instead.",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      return formatAnswers(payload.questions, parsed.data.answers);
+      return `The round is on screen: ${count} question${
+        count === 1 ? "" : "s"
+      }, each with your recommendation pre-selected. Say one short line and end your turn — the answers will arrive as a message when the user submits, however long they take.`;
     },
   });
 
