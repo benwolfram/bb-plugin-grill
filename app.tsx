@@ -17,6 +17,7 @@ import {
   type PluginPendingInteractionProps,
 } from "@get-bb/plugin-sdk/app";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { ChoiceControl, ChoiceRow } from "@/components/ui/choice";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -142,37 +143,31 @@ function sameAsRecommended(
 }
 
 /**
- * Long bodies are what starve a phone of room, and you do not need to read one
- * to accept the recommendation. Collapse anything past a few lines behind a
- * toggle; short bodies stay open so nothing is hidden without cause.
+ * The round's framing is read once and then only takes room. It opens
+ * expanded and can be folded away for the rest of the round; the questions
+ * themselves are never abridged.
  */
-const BODY_COLLAPSE_CHARS = 240;
-
-function QuestionBody({ body }: { body: string }) {
-  const collapsible = body.length > BODY_COLLAPSE_CHARS;
-  const [open, setOpen] = useState(false);
-  const collapsed = collapsible && !open;
+function RoundIntro({ intro }: { intro: string }) {
+  const [open, setOpen] = useState(true);
   return (
-    <div className="mt-1.5">
-      <div
-        className={cn(
-          "relative text-sm text-muted-foreground",
-          collapsed && "max-h-24 overflow-hidden",
-        )}
+    <div className="shrink-0 border-b border-border px-4 py-2.5">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
-        <Markdown content={body} />
-        {collapsed ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
-        ) : null}
-      </div>
-      {collapsible ? (
-        <button
-          type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="mt-1 text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
-        >
-          {open ? "Show less" : "Show more"}
-        </button>
+        <Icon
+          name="ChevronDown"
+          aria-hidden
+          className={cn("size-3 transition-transform", !open && "-rotate-90")}
+        />
+        Round notes
+      </button>
+      {open ? (
+        <div className="mt-1 text-sm text-muted-foreground">
+          <Markdown content={intro} />
+        </div>
       ) : null}
     </div>
   );
@@ -243,7 +238,11 @@ function QuestionBlock({
         </span>
         <span className="text-sm font-medium">{question.title}</span>
       </legend>
-      {question.body ? <QuestionBody body={question.body} /> : null}
+      {question.body ? (
+        <div className="mt-1.5 text-sm text-muted-foreground">
+          <Markdown content={question.body} />
+        </div>
+      ) : null}
       <div className="mt-2 flex flex-col gap-0.5">
         {question.choices.map((choice) => (
           <ChoiceRow key={choice.id}>
@@ -379,11 +378,7 @@ function GrillRound({
       onKeyDown={onKeyDown}
       className="flex max-h-[80dvh] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-card"
     >
-      {payload.intro ? (
-        <div className="shrink-0 border-b border-border px-4 py-2.5 text-sm text-muted-foreground">
-          <Markdown content={payload.intro} />
-        </div>
-      ) : null}
+      {payload.intro ? <RoundIntro intro={payload.intro} /> : null}
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 py-3">
         {questions.map((question, index) => (
