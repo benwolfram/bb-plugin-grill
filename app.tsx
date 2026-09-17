@@ -346,18 +346,18 @@ function ChoiceRow({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium leading-none">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium leading-normal break-words min-w-0">
             {choice.label}
           </span>
           {choice.recommended ? (
-            <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-secondary-foreground">
+            <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-secondary-foreground">
               Recommended
             </span>
           ) : null}
         </div>
         {choice.detail ? (
-          <span className="mt-1 block text-xs text-muted-foreground leading-normal">
+          <span className="mt-1 block text-xs text-muted-foreground leading-normal break-words min-w-0">
             {choice.detail}
           </span>
         ) : null}
@@ -498,7 +498,7 @@ function CustomChoiceRow({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 min-w-0 max-w-full">
       <div
         role={isMultiple ? "checkbox" : "radio"}
         aria-checked={isSelected}
@@ -514,7 +514,7 @@ function CustomChoiceRow({
           }
         }}
         className={cn(
-          "group relative flex cursor-pointer select-none items-start gap-3 rounded-lg border p-3 transition-colors",
+          "group relative flex cursor-pointer select-none items-start gap-3 rounded-lg border p-3 transition-colors min-w-0 max-w-full",
           isSelected
             ? "border-primary/40 bg-primary/5 text-foreground shadow-xs"
             : "border-border bg-card/50 hover:border-border-hover hover:bg-card/80 text-card-foreground",
@@ -533,19 +533,19 @@ function CustomChoiceRow({
           {isSelected ? isMultiple ? <CheckmarkIcon /> : <RadioDot /> : null}
         </div>
 
-        <span className="min-w-0 flex-1 text-sm font-medium leading-none text-muted-foreground">
+        <span className="min-w-0 flex-1 text-sm font-medium leading-normal text-muted-foreground break-words">
           {CUSTOM_LABEL}
         </span>
 
         {index < 9 ? (
-          <kbd className="hidden sm:inline-flex h-5 items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+          <kbd className="hidden sm:inline-flex h-5 items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground shrink-0">
             {index + 1}
           </kbd>
         ) : null}
       </div>
 
       {isSelected ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 min-w-0 max-w-full">
           <textarea
             ref={customTextareaRef}
             value={customText}
@@ -557,19 +557,19 @@ function CustomChoiceRow({
               resizeTextarea(e.target);
             }}
             placeholder="Type your own answer, or paste a screenshot…"
-            className="w-full resize-none overflow-y-auto rounded-md border border-border bg-surface-raised px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus-visible:border-ring/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
+            className="box-border w-full min-w-0 max-w-full resize-none overflow-y-auto rounded-md border border-border bg-surface-raised px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus-visible:border-ring/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
             style={{ minHeight: "64px", maxHeight: "200px" }}
           />
 
           {(images.length > 0 || isUploading) ? (
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <div className="flex flex-wrap items-center gap-2 pt-0.5 min-w-0 max-w-full">
               {images.map((img) => (
                 <div
                   key={img.id}
-                  className="group relative flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-1.5 pr-2 shadow-xs transition-colors hover:bg-muted/60"
+                  className="group relative flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 p-1.5 pr-2 shadow-xs transition-colors hover:bg-muted/60"
                 >
                   <ImageThumbnail img={img} threadId={threadId} rpc={rpc} />
-                  <div className="flex flex-col max-w-[150px]">
+                  <div className="flex min-w-0 flex-col max-w-[120px] sm:max-w-[150px]">
                     <span className="truncate text-xs font-medium text-foreground">
                       {img.name}
                     </span>
@@ -584,7 +584,7 @@ function CustomChoiceRow({
                       e.stopPropagation();
                       onRemoveImage(img.id);
                     }}
-                    className="ml-1 rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    className="ml-1 shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                     title="Remove image"
                   >
                     <Icon name="X" className="size-3.5" />
@@ -593,7 +593,7 @@ function CustomChoiceRow({
               ))}
 
               {isUploading ? (
-                <div className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground shrink-0">
                   <Icon name="Spinner" className="size-3.5 animate-spin" />
                   <span>Saving image…</span>
                 </div>
@@ -920,35 +920,35 @@ function GrillRound({
         />
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 py-3 min-w-0 max-w-full">
         {payload.intro && isFirst ? (
-          <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground break-words min-w-0 max-w-full">
             <Markdown content={payload.intro} />
           </div>
         ) : null}
 
-        <fieldset className="min-w-0 space-y-3">
-          <legend className="flex items-baseline gap-2">
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+        <div className="min-w-0 max-w-full space-y-3">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
               Q{currentIndex + 1}/{totalQuestions}
             </span>
-            <span className="text-sm font-semibold text-foreground">
+            <span className="min-w-0 text-sm font-semibold text-foreground break-words">
               {currentQuestion.title}
             </span>
             {currentQuestion.multiple ? (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 Multiple choice
               </span>
             ) : null}
-          </legend>
+          </div>
 
           {currentQuestion.body ? (
-            <div className="text-xs text-muted-foreground leading-relaxed">
+            <div className="text-xs text-muted-foreground leading-relaxed break-words min-w-0 max-w-full">
               <Markdown content={currentQuestion.body} />
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-2 pt-1">
+          <div className="flex flex-col gap-2 pt-1 min-w-0 max-w-full">
             {currentQuestion.choices.map((choice, idx) => (
               <ChoiceRow
                 key={choice.id}
@@ -985,45 +985,45 @@ function GrillRound({
               customTextareaRef={customTextareaRef}
             />
           </div>
-        </fieldset>
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={pending}
-          onClick={() => void handleDismiss()}
-        >
-          Dismiss
-        </Button>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3 min-w-0 max-w-full overflow-hidden">
+        <div className="flex min-w-0 items-center gap-1.5 shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={pending}
+            onClick={() => void handleDismiss()}
+          >
+            Dismiss
+          </Button>
 
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
           {dirty ? (
             <Button
               type="button"
-              variant="link"
+              variant="ghost"
               size="sm"
-              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-muted-foreground hover:text-foreground px-2"
               onClick={() => {
                 const rec = recommendedAnswers(questions);
                 setAnswers(rec);
                 saveDraft(interaction.threadId, rec, currentIndex);
               }}
             >
-              Reset to recommendations
+              Reset <span className="hidden sm:inline">to recommendations</span>
             </Button>
-          ) : null}
-
-          {error ? (
-            <span role="alert" className="text-xs text-destructive">
-              {error}
-            </span>
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
+        {error ? (
+          <span role="alert" className="truncate text-xs text-destructive">
+            {error}
+          </span>
+        ) : null}
+
+        <div className="flex items-center gap-2 shrink-0">
           {!isFirst ? (
             <Button
               type="button"
