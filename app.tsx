@@ -256,7 +256,8 @@ function QuestionTabs({
     <div
       role="tablist"
       aria-label="Questions"
-      className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border px-4 py-2"
+      className="flex w-full min-w-0 max-w-full shrink-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain border-b border-border px-4 py-2"
+      style={{ contain: "inline-size" }}
     >
       {questions.map((question, index) => {
         const selected = index === currentIndex;
@@ -909,7 +910,7 @@ function GrillRound({
         handleAdvance();
       }}
       onKeyDown={onFormKeyDown}
-      className="flex max-h-[85dvh] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm"
+      className="flex max-h-[70dvh] sm:max-h-[85dvh] min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm"
     >
       {totalQuestions > 1 ? (
         <QuestionTabs
@@ -920,7 +921,7 @@ function GrillRound({
         />
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 py-3 min-w-0 max-w-full">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3 min-w-0 max-w-full">
         {payload.intro && isFirst ? (
           <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground break-words min-w-0 max-w-full">
             <Markdown content={payload.intro} />
