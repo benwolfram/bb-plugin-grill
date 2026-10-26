@@ -655,7 +655,38 @@ function GrillRound({
   const [error, setError] = useState<string | null>(null);
 
   const customTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const currentQuestion = questions[currentIndex] ?? null;
+
+  // The host slot is shorter than 85dvh once its own header is counted, so
+  // the slot scrolled instead of the question body, hiding tabs and title.
+  // Cap the form at whatever height the slot's scroll container leaves it.
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    let container = form.parentElement;
+    while (container && !/(auto|scroll|hidden)/.test(getComputedStyle(container).overflowY)) {
+      container = container.parentElement;
+    }
+    if (!container) return;
+    const scroller = container;
+    const fit = () => {
+      const otherContent = scroller.scrollHeight - form.offsetHeight;
+      const available = scroller.clientHeight - otherContent;
+      form.style.maxHeight = `min(85dvh, ${Math.max(available, 240)}px)`;
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [payload]);
+
+  // A new question starts at its title, not at the previous scroll offset.
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+    formRef.current?.scrollIntoView({ block: "nearest" });
+  }, [currentIndex]);
 
   const complete = useMemo(
     () =>
@@ -905,6 +936,7 @@ function GrillRound({
 
   return (
     <form
+      ref={formRef}
       onSubmit={(e: FormEvent) => {
         e.preventDefault();
         handleAdvance();
@@ -921,7 +953,9 @@ function GrillRound({
         />
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3 min-w-0 max-w-full">
+      <div
+        ref={bodyRef}
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3 min-w-0 max-w-full">
         {payload.intro && isFirst ? (
           <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground break-words min-w-0 max-w-full">
             <Markdown content={payload.intro} />
